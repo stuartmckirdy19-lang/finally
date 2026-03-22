@@ -36,7 +36,7 @@ The user runs a single Docker command (or a provided start script). A browser op
 - **Price flash animations**: brief green/red background highlight on price change, fading over ~500ms via CSS transitions
 - **Connection status indicator**: a small colored dot (green = connected, yellow = reconnecting, red = disconnected) visible in the header
 - **Professional, data-dense layout**: inspired by Bloomberg/trading terminals — every pixel earns its place
-- **Responsive but desktop-first**: optimized for wide screens, functional on tablet
+- **Responsive but desktop-first**: design target is 1440px wide; minimum supported width is 1280px. Functional on tablet at reduced density.
 
 ### Color Scheme
 - Accent Yellow: `#ecad0a`
@@ -175,7 +175,8 @@ Both the simulator and the Massive client implement the same abstract interface.
 
 - Endpoint: `GET /api/stream/prices`
 - Long-lived SSE connection; client uses native `EventSource` API
-- Server pushes price updates for all tickers known to the system at a regular cadence (~500ms) — in the single-user model this is equivalent to the user's watchlist
+- Server pushes price updates for the **union of the user's watchlist and any tickers with open positions**. This ensures live P&L remains computable even if the user removes a held ticker from the watchlist.
+- Push cadence: one event per simulator tick (~500ms). No batching or throttling — at 10–15 tickers × 2 updates/sec the payload is negligible.
 - Each SSE event contains ticker, price, previous price, timestamp, and change direction
 - Client handles reconnection automatically (EventSource has built-in retry)
 
@@ -211,10 +212,12 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `ticker` TEXT
-- `quantity` REAL (fractional shares supported)
+- `quantity` REAL (fractional shares supported, including values < 1.0 e.g. 0.5)
 - `avg_cost` REAL
 - `updated_at` TEXT (ISO timestamp)
 - UNIQUE constraint on `(user_id, ticker)`
+
+When a full sell reduces `quantity` to zero, the row is **deleted** from `positions`. There are no zero-quantity rows. The `trades` table retains the full history regardless.
 
 **trades** — Trade history (append-only log)
 - `id` TEXT PRIMARY KEY (UUID)
@@ -225,24 +228,28 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 - `price` REAL
 - `executed_at` TEXT (ISO timestamp)
 
-**portfolio_snapshots** — Portfolio value over time (for P&L chart). Recorded every 30 seconds by a background task, and immediately after each trade execution.
+**portfolio_snapshots** — Portfolio value over time (for P&L chart). Recorded every **5 seconds** by a background task, and immediately after each trade execution. 5-second resolution provides a smooth chart for typical demo sessions (minutes, not hours); a full day at 5s produces ~17k rows which is fine for SQLite.
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `total_value` REAL
 - `recorded_at` TEXT (ISO timestamp)
+- Index: `(user_id, recorded_at)` — required for efficient history range queries
 
 **chat_messages** — Conversation history with LLM
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_id` TEXT (default: `"default"`)
 - `role` TEXT (`"user"` or `"assistant"`)
 - `content` TEXT
-- `actions` TEXT (JSON — trades executed, watchlist changes made; null for user messages)
 - `created_at` TEXT (ISO timestamp)
+
+Trade and watchlist audit trail is fully covered by the `trades` and `watchlist` tables. Chat messages store only the conversational text. History persists across page refreshes; the frontend loads it on mount.
 
 ### Default Seed Data
 
 - One user profile: `id="default"`, `cash_balance=10000.0`
 - Ten watchlist entries: AAPL, GOOGL, MSFT, AMZN, TSLA, NVDA, META, JPM, V, NFLX
+
+Seeding uses `INSERT OR IGNORE` for all rows — it is safe to run on an existing database and will not overwrite user data (e.g., modified cash balance or a custom watchlist).
 
 ---
 
@@ -270,6 +277,7 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 ### Chat
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/api/chat/history` | Load conversation history on page mount |
 | POST | `/api/chat` | Send a message, receive complete JSON response (message + executed actions) |
 
 ### System
@@ -295,7 +303,7 @@ When the user sends a chat message, the backend:
 4. Calls the LLM via LiteLLM → OpenRouter, requesting structured output, using the cerebras-inference skill
 5. Parses the complete structured JSON response
 6. Auto-executes any trades or watchlist changes specified in the response
-7. Stores the message and executed actions in `chat_messages`
+7. Stores both the user message and assistant message in `chat_messages`
 8. Returns the complete JSON response to the frontend (no token-by-token streaming — Cerebras inference is fast enough that a loading indicator is sufficient)
 
 ### Structured Output Schema
@@ -325,7 +333,14 @@ Trades specified by the LLM execute automatically — no confirmation dialog. Th
 - It creates an impressive, fluid demo experience
 - It demonstrates agentic AI capabilities — the core theme of the course
 
-If a trade fails validation (e.g., insufficient cash), the error is included in the chat response so the LLM can inform the user.
+**Trade execution rules:**
+- If the LLM specifies a trade for a ticker not currently on the watchlist, the ticker is **auto-added to the watchlist** before the trade executes. The LLM may proactively recommend tickers outside the existing watchlist.
+- All trades in the response are **attempted in order**. Failures do not stop subsequent trades. Every trade result (success or failure with reason) is collected and returned to the frontend in the `actions` field.
+- The frontend displays each trade result inline in the chat message so the user can see exactly what executed.
+
+### Conversation History
+
+When constructing the LLM prompt, load the **last 20 messages** (10 turns) from `chat_messages` for the user. This caps context growth while retaining enough history for coherent conversation. The full history remains in the database for display purposes.
 
 ### System Prompt Guidance
 
@@ -352,12 +367,12 @@ When `LLM_MOCK=true`, the backend returns deterministic mock responses instead o
 
 The frontend is a single-page application with a dense, terminal-inspired layout. The specific component architecture and layout system is up to the Frontend Engineer, but the UI should include these elements:
 
-- **Watchlist panel** — grid/table of watched tickers with: ticker symbol, current price (flashing green/red on change), daily change %, and a sparkline mini-chart (accumulated from SSE since page load)
-- **Main chart area** — larger chart for the currently selected ticker, with at minimum price over time. Clicking a ticker in the watchlist selects it here.
+- **Watchlist panel** — grid/table of watched tickers with: ticker symbol, current price (flashing green/red on change), change % since simulator start (seed price → current price), and a sparkline mini-chart (accumulated from SSE since page load)
+- **Main chart area** — larger chart for the currently selected ticker, with at minimum price over time. Clicking a ticker in the watchlist selects it here. Chart history is accumulated from the SSE stream since page load — there is no backend history endpoint for ticker prices. This is acceptable for a demo; the chart fills in progressively as prices stream.
 - **Portfolio heatmap** — treemap visualization where each rectangle is a position, sized by portfolio weight, colored by P&L (green = profit, red = loss)
 - **P&L chart** — line chart showing total portfolio value over time, using data from `portfolio_snapshots`
 - **Positions table** — tabular view of all positions: ticker, quantity, avg cost, current price, unrealized P&L, % change
-- **Trade bar** — simple input area: ticker field, quantity field, buy button, sell button. Market orders, instant fill.
+- **Trade bar** — simple input area: ticker field, quantity field (accepts fractional values e.g. 0.5), buy button, sell button. Market orders, instant fill.
 - **AI chat panel** — docked/collapsible sidebar. Message input, scrolling conversation history, loading indicator while waiting for LLM response. Trade executions and watchlist changes shown inline as confirmations.
 - **Header** — portfolio total value (updating live), connection status indicator, cash balance
 
@@ -419,13 +434,13 @@ All scripts should be idempotent — safe to run multiple times.
 
 ### Optional Cloud Deployment
 
-The container is designed to deploy to AWS App Runner, Render, or any container platform. A Terraform configuration for App Runner may be provided in a `deploy/` directory as a stretch goal, but is not part of the core build.
+The container is designed to deploy to AWS App Runner, Render, or any container platform. No Terraform or deployment configuration is part of this project.
 
 ---
 
 ## 12. Testing Strategy
 
-### Unit Tests (within `frontend/` and `backend/`)
+### Unit Tests (within `backend/`)
 
 **Backend (pytest)**:
 - Market data: simulator generates valid prices, GBM math is correct, Massive API response parsing works, both implementations conform to the abstract interface
@@ -433,12 +448,7 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 - LLM: structured output parsing handles all valid schemas, graceful handling of malformed responses, trade validation within chat flow
 - API routes: correct status codes, response shapes, error handling
 
-**Frontend (React Testing Library or similar)**:
-- Component rendering with mock data
-- Price flash animation triggers correctly on price changes
-- Watchlist CRUD operations
-- Portfolio display calculations
-- Chat message rendering and loading state
+Frontend behaviour is covered by the E2E tests below. Separate frontend unit tests are omitted to reduce build complexity.
 
 ### E2E Tests (in `test/`)
 
@@ -454,3 +464,4 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 - Portfolio visualization: heatmap renders with correct colors, P&L chart has data points
 - AI chat (mocked): send a message, receive a response, trade execution appears inline
 - SSE resilience: disconnect and verify reconnection
+
