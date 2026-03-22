@@ -4,6 +4,8 @@ A visually stunning AI-powered trading workstation that streams live market data
 
 Built entirely by coding agents as a capstone project for an agentic AI coding course.
 
+<!-- GitHub Actions verified -->
+
 ## Features
 
 - **Live price streaming** via SSE with green/red flash animations
