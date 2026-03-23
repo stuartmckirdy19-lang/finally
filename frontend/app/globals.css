@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg-primary: #0d1117;
+  --color-bg-secondary: #1a1a2e;
+  --color-bg-tertiary: #161b22;
+  --color-accent-yellow: #ecad0a;
+  --color-blue-primary: #209dd7;
+  --color-purple-secondary: #753991;
+  --color-profit: #00c853;
+  --color-loss: #ff1744;
+  --color-border: #2d2d3d;
+  --color-text-muted: #8b949e;
+  --color-text-primary: #e6edf3;
+  --color-text-bright: #ffffff;
+  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans);
+}
+
+:root {
+  --background: #0d1117;
+  --foreground: #e6edf3;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2d2d3d #0d1117;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  overflow: hidden;
+}
+
+@keyframes flash-green {
+  0% { background-color: rgba(0, 200, 83, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(255, 23, 68, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.price-flash-up {
+  animation: flash-green 500ms ease-out;
+}
+
+.price-flash-down {
+  animation: flash-red 500ms ease-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-pulse {
+  animation: pulse-dot 2s ease-in-out infinite;
+}

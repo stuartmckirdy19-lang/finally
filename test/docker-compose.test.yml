@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_MOCK=true
+      - DB_PATH=/app/db/finally.db
+    volumes:
+      - test-data:/app/db
+
+volumes:
+  test-data:
