@@ -17,34 +17,42 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/stream", tags=["streaming"])
 
 
-def create_stream_router(price_cache: PriceCache) -> APIRouter:
-    """Create the SSE streaming router with a reference to the price cache.
+def _get_global_price_cache() -> PriceCache:
+    """Return the global price cache from app.main."""
+    from app.main import price_cache
+    return price_cache
 
-    This factory pattern lets us inject the PriceCache without globals.
+
+@router.get("/prices")
+async def stream_prices(request: Request) -> StreamingResponse:
+    """SSE endpoint for live price updates.
+
+    Streams all tracked ticker prices every ~500ms. The client connects
+    with EventSource and receives events in the format:
+
+        data: {"AAPL": {"ticker": "AAPL", "price": 190.50, ...}, ...}
+
+    Includes a retry directive so the browser auto-reconnects on
+    disconnection (EventSource built-in behavior).
     """
+    price_cache = _get_global_price_cache()
+    return StreamingResponse(
+        _generate_events(price_cache, request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering if proxied
+        },
+    )
 
-    @router.get("/prices")
-    async def stream_prices(request: Request) -> StreamingResponse:
-        """SSE endpoint for live price updates.
 
-        Streams all tracked ticker prices every ~500ms. The client connects
-        with EventSource and receives events in the format:
+def create_stream_router(price_cache: PriceCache) -> APIRouter:
+    """Legacy factory kept for backwards compatibility.
 
-            data: {"AAPL": {"ticker": "AAPL", "price": 190.50, ...}, ...}
-
-        Includes a retry directive so the browser auto-reconnects on
-        disconnection (EventSource built-in behavior).
-        """
-        return StreamingResponse(
-            _generate_events(price_cache, request),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # Disable nginx buffering if proxied
-            },
-        )
-
+    The router is now pre-configured with a global price cache reference.
+    The price_cache argument is ignored.
+    """
     return router
 
 
