@@ -2,11 +2,137 @@
 
 ## Executive Summary
 
-FinAlly has three monetizable assets: the **course** it was built for, the **platform** itself, and the **AI copilot framework** underneath. This document outlines a phased approach from immediate revenue (the course) to scalable SaaS and B2B licensing.
+FinAlly's core monetizable asset is not the terminal UI, not the course, and not the EA bridges. It is the **AI-native portfolio health intelligence layer** — a system that continuously monitors, diagnoses, and prescribes actions across a user's entire financial exposure the way a physician monitors a patient's vital signs.
+
+Every other revenue stream (course, SaaS, EA execution, strategy plugins, B2B licensing) is a **distribution channel** for this core capability. The AI copilot is not a chatbot bolted onto a dashboard. It is the product. Everything else is surface area.
+
+### The Core Thesis
+
+> **Portfolio health is an unsolved problem.** Retail traders and even small funds have no unified, intelligent system that watches their positions 24/7, understands cross-asset correlation, detects regime changes, and acts autonomously to protect capital. Bloomberg sells data. Brokers sell execution. Nobody sells an AI that actually understands your portfolio as a living, breathing organism and keeps it healthy.
+
+FinAlly fills that gap.
 
 ---
 
-## 1. Revenue Stream: The Course (Immediate)
+## 1. The Core Product: AI Portfolio Health Intelligence
+
+This is what everything else is built on top of. Every revenue stream below derives its value from this layer.
+
+### 1.1 The Portfolio Health Model
+
+Inspired by clinical medicine, FinAlly treats a portfolio as a patient. The AI copilot functions as a diagnostician with continuous monitoring capabilities:
+
+| Medical Analogy | Portfolio Equivalent | AI Copilot Action |
+|----------------|---------------------|-------------------|
+| **Vital signs** | Price, P&L, margin utilization, drawdown | Continuous monitoring via SSE stream; real-time dashboard |
+| **Blood panel** | Sector exposure, correlation matrix, beta, volatility | Periodic deep analysis; presented as "Portfolio Health Report" |
+| **Symptom detection** | Concentration risk, correlated drawdowns, margin stress | Proactive alerts: "Your tech exposure is 72% — a single sector selloff could wipe 8% of NAV" |
+| **Diagnosis** | Root cause analysis of underperformance | "Your portfolio lost 3.2% today. 80% of that loss came from NVDA and TSLA moving in lockstep. You're effectively 2x leveraged on AI sentiment." |
+| **Prescription** | Specific rebalancing trades, hedges, strategy adjustments | "I recommend selling 30% of your NVDA position and rotating into JPM and V to reduce tech concentration below 50%. Want me to execute?" |
+| **Triage** | Urgency-based prioritization when multiple issues exist | "Three issues detected: (1) CRITICAL — margin utilization at 89%, (2) WARNING — earnings risk on 4 holdings this week, (3) INFO — portfolio drift from target allocation exceeded 10%" |
+| **Preventive care** | Proactive risk reduction before events | "FOMC decision in 2 hours. Your portfolio has high rate sensitivity. I'm recommending we pause the momentum EA and reduce position sizes 25% until after the announcement." |
+
+### 1.2 Health Scoring System
+
+Every portfolio gets a continuously updated **Health Score (0–100)** composed of weighted sub-scores:
+
+```
+Portfolio Health Score: 73/100
+├── Diversification:     82/100  (sector, geography, asset class)
+├── Risk-Adjusted Return: 68/100  (Sharpe, Sortino, Calmar ratios)
+├── Drawdown Resilience:  71/100  (max drawdown, recovery time, tail risk)
+├── Concentration Risk:   54/100  ⚠️ (top 3 positions = 61% of portfolio)
+├── Correlation Health:   79/100  (pairwise correlation, factor exposure)
+├── Liquidity:           91/100  (position sizes vs. volume, exit time estimates)
+├── Momentum Alignment:  65/100  (are positions aligned with current trends?)
+└── Event Exposure:      72/100  (upcoming earnings, FOMC, ex-div dates)
+```
+
+The Health Score is:
+- **Always visible** in the header alongside portfolio value — this is the primary engagement metric
+- **Historically tracked** — users see their health score improve over time as they follow AI recommendations
+- **The hook for conversion** — free users see the score but get limited diagnostics; paid users get the full breakdown and AI-driven prescriptions
+
+### 1.3 Continuous Monitoring Modes
+
+The AI doesn't just respond to questions. It **proactively watches** and intervenes:
+
+| Mode | Trigger | Action |
+|------|---------|--------|
+| **Sentinel** | Real-time price moves | "TSLA just dropped 4% in 10 minutes. Your portfolio health score dropped from 73 to 61. Your stop-loss EA hasn't triggered because it's configured for 5%. Want me to intervene?" |
+| **Analyst** | Scheduled (hourly/daily) | "Daily health report: Portfolio +0.8% today, health score stable at 73. No action needed. One note — NFLX earnings Thursday; your position is 8% of portfolio." |
+| **Strategist** | User-initiated or weekly | "Weekly strategy review: Your mean reversion EA generated 12 trades, 9 profitable. But 3 of those trades conflicted with your trend-following EA, costing $340 in whipsaw. I recommend excluding overlapping tickers." |
+| **Emergency** | Threshold breach | "CIRCUIT BREAKER: Portfolio drawdown hit -5% daily limit. I've paused all EAs and reduced position sizes by 50%. Here's what happened and your options." |
+
+### 1.4 AI Integration Architecture
+
+The portfolio health layer sits at the center of the entire system:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Portfolio Health Engine                 │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐  │
+│  │ Health Score  │  │ Risk Models  │  │ Regime Detection  │  │
+│  │ Calculator    │  │ (VaR, CVaR,  │  │ (volatility,      │  │
+│  │              │  │  correlation) │  │  trend, mean-rev) │  │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬──────────┘  │
+│         │                 │                    │              │
+│  ┌──────▼─────────────────▼────────────────────▼──────────┐  │
+│  │              LLM Reasoning Layer                        │  │
+│  │  System prompt + portfolio context + health metrics     │  │
+│  │  → Structured output: diagnosis, prescription, actions  │  │
+│  └──────────────────────┬─────────────────────────────────┘  │
+│                         │                                    │
+└─────────────────────────┼────────────────────────────────────┘
+                          │
+         ┌────────────────┼────────────────────┐
+         │                │                    │
+    ┌────▼─────┐   ┌──────▼──────┐   ┌────────▼────────┐
+    │ Chat UI  │   │ EA Control  │   │ Strategy Plugin  │
+    │ (explain)│   │ (act)       │   │ Runtime (adjust) │
+    └──────────┘   └─────────────┘   └─────────────────┘
+```
+
+The LLM doesn't just chat — it receives **quantitative health metrics** as structured context and reasons over them. This is what separates FinAlly from a ChatGPT wrapper. The AI has:
+- Real-time portfolio state (positions, P&L, margin)
+- Computed risk metrics (VaR, correlation matrix, beta exposure)
+- Health score breakdown with historical trend
+- Active EA/strategy states and their recent signals
+- Market regime classification (trending, ranging, volatile, calm)
+- Upcoming event calendar (earnings, macro, ex-div)
+
+### 1.5 Why This Is the Moat
+
+1. **Data flywheel**: Every trade, every EA signal, every price tick enriches the AI's understanding of the user's portfolio behavior. Over time, the AI learns that *this user* tends to over-concentrate in tech, tends to hold losers too long, tends to panic-sell on -3% days. Personalized health intelligence is nearly impossible to replicate without the data.
+
+2. **Compound recommendations**: The AI doesn't give isolated tips. It understands how a recommendation to buy AAPL interacts with existing MSFT and GOOGL positions, the running momentum EA, and the user's stated goal of "steady growth with limited downside." This is portfolio-level reasoning, not ticker-level.
+
+3. **Trust through transparency**: Every recommendation comes with a full explanation: what the current state is, what the risk is, what the proposed action achieves, and what the tradeoffs are. The Health Score creates a legible, trackable measure of whether the AI's advice actually improves outcomes.
+
+4. **Switching cost**: Once a user's portfolio health history, risk preferences, and strategy configurations are built up over weeks/months, switching to a competitor means losing all that context. The AI gets better the longer you use it.
+
+### 1.6 Monetization Through the Health Layer
+
+The Health Score is the **conversion engine** across every tier:
+
+| What Users See | Free | Pro ($19/mo) | Premium ($49/mo) | Trader ($149/mo) |
+|---------------|------|-------------|------------------|------------------|
+| Health Score (headline number) | Yes | Yes | Yes | Yes |
+| Sub-score breakdown | Top 3 only | All 8 dimensions | All 8 dimensions | All 8 + custom |
+| Diagnostic explanations | 1/day | Unlimited | Unlimited | Unlimited |
+| Prescriptive trade recommendations | View only | View + 1-click execute | Auto-execute option | Auto-execute + EA control |
+| Proactive alerts | Daily summary only | Real-time (5 alerts/day) | Unlimited real-time | Unlimited + emergency circuit breakers |
+| Historical health tracking | 7-day window | 90-day | Unlimited | Unlimited + export |
+| Regime detection | No | Basic (3 regimes) | Advanced (8 regimes) | Advanced + custom indicators |
+| Strategy health (EA/plugin monitoring) | No | No | Basic | Full orchestration |
+| Portfolio Health API | No | No | No | Yes (for custom tooling) |
+
+The free tier gives users enough to see the score drop when they make a bad trade, and enough diagnostic hints to realize the paid tier would have warned them. That's the conversion trigger.
+
+---
+
+## 2. Revenue Stream: The Course (Immediate)
 
 FinAlly is the capstone project for an agentic AI coding course. The platform is proof that the curriculum works — students see a production-quality app built entirely by AI agents and learn to do it themselves.
 
@@ -487,11 +613,11 @@ More strategies → More users → More revenue → More developers → More str
 ```
 Phase 1 (Now)          Phase 2 (3-6mo)           Phase 3 (6-12mo)          Phase 4 (12mo+)
 ─────────────────      ─────────────────────      ─────────────────────     ─────────────────────
-Course sales           Auth + multi-user          Strategy plugin runtime   B2B white-label
-Open source repo       Hosted SaaS               EA execution layer        Enterprise contracts
-Content marketing      Stripe billing             Plugin marketplace        Prop firm deals
-Community building     Free/Pro/Premium tiers     Native broker bridges     AI strategy generation
-                                                  Developer SDK             International expansion
+Complete platform      HEALTH ENGINE (core)       Strategy plugin runtime   B2B white-label
+Course sales           Health Score + sub-scores  EA execution layer        Enterprise contracts
+Open source repo       Auth + multi-user          Plugin marketplace        Prop firm deals
+Content marketing      Hosted SaaS + Stripe       Native broker bridges     AI strategy generation
+Community building     Proactive AI monitoring    Developer SDK             International expansion
 ```
 
 ### Phase 1 Priorities (Now)
@@ -501,29 +627,34 @@ Community building     Free/Pro/Premium tiers     Native broker bridges     AI s
 - [ ] Launch landing page with FinAlly demo video
 - [ ] Build email list via free "AI Coding" newsletter
 
-### Phase 2 Priorities (Month 3–6)
+### Phase 2 Priorities (Month 3–6) — Health Engine is the headline
+- [ ] **Portfolio Health Score engine** — compute and display the 0–100 score with 8 sub-dimensions
+- [ ] **Risk model pipeline** — VaR, correlation matrix, beta exposure, concentration metrics fed as structured context to LLM
+- [ ] **Proactive monitoring modes** — Sentinel (real-time), Analyst (scheduled), Emergency (threshold breach)
+- [ ] **Health Score history tracking** — persist scores, render historical health trend chart
 - [ ] Add authentication (OAuth)
 - [ ] Migrate to PostgreSQL
 - [ ] Deploy hosted version
-- [ ] Integrate Stripe
+- [ ] Integrate Stripe with health-gated tiers (free = headline score only, paid = full diagnostics)
 - [ ] Implement usage-based rate limiting
-- [ ] Launch free tier, begin converting to paid
 
 ### Phase 3 Priorities (Month 6–12)
+- [ ] **Regime detection engine** — classify market conditions, feed to AI for context-aware recommendations
+- [ ] **Personalized AI learning** — track user behavior patterns (concentration tendencies, hold times, panic sells) and tailor advice
 - [ ] Design and implement Strategy Plugin API and runtime sandbox
 - [ ] Ship 5 built-in strategies as reference implementations
 - [ ] Build webhook bridge for EA orchestration (MVP)
-- [ ] Cross-EA/strategy risk engine
+- [ ] Cross-EA/strategy risk engine (integrates with Health Score)
 - [ ] Developer SDK (`finally-sdk`) and CLI tooling
 - [ ] Launch marketplace with community + premium listings
 - [ ] Ship public API with metered billing
 - [ ] Backtesting engine for strategy validation
 
 ### Phase 4 Priorities (Month 12+)
-- [ ] AI-generated strategies from natural language
+- [ ] **AI-generated strategies** from natural language — the health engine recommends, the AI builds
 - [ ] Strategy Stacks (composable meta-strategies)
 - [ ] Native MT4/MT5 and IBKR bridges
-- [ ] First white-label / prop firm customer
+- [ ] First white-label / prop firm customer (sell the health engine as the core value prop)
 - [ ] Enterprise sales process
 - [ ] SOC 2 / security compliance for enterprise deals
 
@@ -576,4 +707,13 @@ Community building     Free/Pro/Premium tiers     Native broker bridges     AI s
 
 ### North Star Metric
 
-**Monthly active strategy sessions** — users who have at least one strategy plugin or EA actively running (paper or live) during the month. This captures the deepest engagement and correlates most strongly with paid conversion and retention across all revenue streams.
+**Average Portfolio Health Score improvement at 30 days** — the median increase in a user's Health Score between day 1 and day 30. This single metric captures everything: users who engage with the AI, follow recommendations, use strategies, and manage risk will see their score rise. It directly measures whether FinAlly is delivering its core promise — making portfolios healthier — and correlates with retention, paid conversion, and word-of-mouth growth.
+
+Target: +12 points median improvement at 30 days for active users.
+
+### Secondary Metrics
+
+- **Monthly active strategy sessions** — users with at least one strategy plugin or EA actively running (paper or live)
+- **Health Score check frequency** — how often users look at their score (engagement proxy)
+- **AI recommendation acceptance rate** — % of AI prescriptions the user executes (trust proxy)
+- **Free → Paid conversion triggered by Health Score** — users who upgrade after seeing a gated diagnostic
